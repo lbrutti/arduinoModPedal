@@ -20,12 +20,30 @@
 #include <DigiPotX9Cxxx.h>
 #include "waves.h"
 
+#define CALIBRATION_PIN 5
+#define DOUBLE_RATE_PIN 6
+#define SINE_PIN 7
+#define TRI_PIN 8
+#define SQR_PIN 9
+#define SAW_PIN 10
+#define RSAW_PIN 11
+#define RAND_PIN 12
+
+#define SINE 0
+#define TRI 1
+#define SQR 2
+#define SAW 3
+#define RSAW 4
+#define RAND 5
+
+
+
 DigiPot pot(2, 3, 4);
-int ratePin = A0;    // select the input pin for the potentiometer
 int rateValue = 0;
 
 int depthPin = A1;    // select the input pin for the potentiometer
 int depthValue = 0;
+
 
 
 long millisPeriod = 0;
@@ -42,52 +60,102 @@ int selectedWave = 1;
 
 void setup() {
   Serial.begin(2000000);
+
+  //CONFIGURE INPUT_PULLUP SWITCHES
+  pinMode(CALIBRATION_PIN, INPUT_PULLUP);
+  pinMode(DOUBLE_RATE_PIN, INPUT_PULLUP);
+  pinMode(SINE_PIN, INPUT_PULLUP);
+  pinMode(TRI_PIN, INPUT_PULLUP);
+  pinMode(SQR_PIN, INPUT_PULLUP);
+  pinMode(SAW_PIN, INPUT_PULLUP);
+  pinMode(RSAW_PIN, INPUT_PULLUP);
+  pinMode(RAND_PIN, INPUT_PULLUP);
+
 }
 
+//returns the highest HIGH pin
+int getSelectedWave() {
+  if (digitalRead(RAND_PIN) == HIGH) {
+    return RAND;
+  } else if (digitalRead(RSAW_PIN) == HIGH) {
+    return RSAW;
+  }
+  else if (digitalRead(SAW_PIN) == HIGH) {
+    return SAW;
+  }
+  else if (digitalRead(SQR_PIN) == HIGH) {
+    return SQR;
+  }
+  else if (digitalRead(TRI_PIN) == HIGH) {
+    return TRI;
+  }  else if (digitalRead(SINE_PIN) == HIGH) {
+    return SINE;
+  }
+  return -1;
+}
+
+
+int isCalibrationMode() {
+  return digitalRead(RAND_PIN) == HIGH;
+}
+
+int doubleRate() {
+  return digitalRead(DOUBLE_RATE_PIN) == HIGH;
+}
+
+
 void loop() {
-  int currentMicros = micros();
-  rateValue = analogRead(ratePin);
-  millisPeriod = map(rateValue, 0, 1023, 1000000, 100000);
-  bool guard = currentMicros - lastSampleReadingMicros >= millisPeriod / 256;
-  if (selectedWave == 4) {
-    guard = currentMicros - lastSampleReadingMicros >= millisPeriod/32;
+  if (isCalibrationMode()) {
+    pot.set(100);
+  } else {
+    int currentMicros = micros();
+    rateValue = analogRead(A0);
+    int minPeriod = doubleRate() ? 500000 : 1000000;
+    int maxPeriod = doubleRate() ? 50000 : 100000;
+    millisPeriod = map(rateValue, 0, 1023, minPeriod, maxPeriod);
+    bool guard = currentMicros - lastSampleReadingMicros >= millisPeriod / 256;
+    if (getSelectedWave() == RAND) {
+      guard = currentMicros - lastSampleReadingMicros >= millisPeriod / 32;
+    }
+
+
+    //Serial.print(rateValue); Serial.print("=>"); Serial.println(millisPeriod);
+
+    if (guard) {
+      switch (getSelectedWave())
+      {
+        case SINE:
+          waveSample = sine256[lastSampleReadingIdx];
+          break;
+
+        case TRI:
+        case SQR:
+          waveSample = square256[lastSampleReadingIdx];
+          break;
+        case SAW:
+          waveSample = saw256[lastSampleReadingIdx];
+          break;
+        case RSAW:
+          waveSample = rsaw256[lastSampleReadingIdx];
+          break;
+        case RAND:
+          waveSample = random(0, 255);
+          break;
+
+        default:
+          waveSample = 0;
+          break;
+      }
+      potValue = map(waveSample, 0, 255, 0, 100);
+      pot.set(potValue);
+      lastSampleReadingMicros = currentMicros;
+      if (lastSampleReadingIdx < 256) {
+        lastSampleReadingIdx++;
+      }
+      else {
+        lastSampleReadingIdx = 0;
+      }
+    }
   }
-
-  Serial.print(rateValue); Serial.print("=>"); Serial.println(millisPeriod);
-
-  if (guard) {
-    switch (selectedWave)
-    {
-      case 0:
-        waveSample = sine256[lastSampleReadingIdx];
-        break;
-
-      case 1:
-        waveSample = square256[lastSampleReadingIdx];
-        break;
-      case 2:
-        waveSample = saw256[lastSampleReadingIdx];
-        break;
-      case 3:
-        waveSample = rsaw256[lastSampleReadingIdx];
-        break;
-      case 4:
-        waveSample = random(0, 255);
-        break;
-
-      default:
-        break;
-    }
-    potValue = map(waveSample, 0, 255, 0, 100);
-    pot.set(potValue);
-    lastSampleReadingMicros = currentMicros;
-    if (lastSampleReadingIdx < 256) {
-      lastSampleReadingIdx++;
-    }
-    else {
-      lastSampleReadingIdx = 0;
-    }
-  }
-
   Serial.println(potValue);
 }
