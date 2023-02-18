@@ -35,6 +35,7 @@
 #define SAW 3
 #define RSAW 4
 #define RAND 5
+#define NO_WAVE -1
 
 
 
@@ -71,6 +72,8 @@ void setup() {
   pinMode(RSAW_PIN, INPUT_PULLUP);
   pinMode(RAND_PIN, INPUT_PULLUP);
 
+  pinMode(LED_BUILTIN, OUTPUT);
+
 }
 
 //returns the highest HIGH pin
@@ -91,12 +94,12 @@ int getSelectedWave() {
   }  else if (digitalRead(SINE_PIN) == HIGH) {
     return SINE;
   }
-  return -1;
+  return NO_WAVE;
 }
 
 
 int isCalibrationMode() {
-  return digitalRead(RAND_PIN) == HIGH;
+  return digitalRead(CALIBRATION_PIN) == HIGH;
 }
 
 int doubleRate() {
@@ -107,7 +110,10 @@ int doubleRate() {
 void loop() {
   if (isCalibrationMode()) {
     pot.set(100);
+    digitalWrite(LED_BUILTIN, LOW);
+    Serial.print("calibration mode : "); Serial.println(100);
   } else {
+    digitalWrite(LED_BUILTIN, HIGH);
     int currentMicros = micros();
     rateValue = analogRead(A0);
     int minPeriod = doubleRate() ? 500000 : 1000000;
@@ -118,27 +124,35 @@ void loop() {
       guard = currentMicros - lastSampleReadingMicros >= millisPeriod / 32;
     }
 
-
+    Serial.print("doubleRate() = "); Serial.println(doubleRate());
     //Serial.print(rateValue); Serial.print("=>"); Serial.println(millisPeriod);
 
     if (guard) {
       switch (getSelectedWave())
       {
         case SINE:
+          Serial.println("SINE");
           waveSample = sine256[lastSampleReadingIdx];
           break;
-
         case TRI:
+          Serial.println("TRI");
+          waveSample = square256[lastSampleReadingIdx];
+          break;
         case SQR:
+          Serial.println("SQR");
           waveSample = square256[lastSampleReadingIdx];
           break;
         case SAW:
+          Serial.println("SAW");
           waveSample = saw256[lastSampleReadingIdx];
           break;
         case RSAW:
+          Serial.println("RSAW");
           waveSample = rsaw256[lastSampleReadingIdx];
           break;
         case RAND:
+          Serial.println("RAND");
+
           waveSample = random(0, 255);
           break;
 
@@ -156,6 +170,7 @@ void loop() {
         lastSampleReadingIdx = 0;
       }
     }
+    //    Serial.println(potValue);
+
   }
-  Serial.println(potValue);
 }
