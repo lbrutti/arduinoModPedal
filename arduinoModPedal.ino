@@ -54,13 +54,13 @@ int sampleReadingTime = 0;
 int lastSampleReadingMicros = 0;
 int lastSampleReadingIdx = 0;
 
-int waveSample = 0;
+uint16_t waveSample = 0;
 
 //0 = sine, 1=square, 2=triangle, 3=sawtooh, 4=reverse saw, 5=random
 int selectedWave = 1;
 
 void setup() {
-  Serial.begin(2000000);
+  Serial.begin(115200);
 
   //CONFIGURE INPUT_PULLUP SWITCHES
   pinMode(CALIBRATION_PIN, INPUT_PULLUP);
@@ -103,7 +103,7 @@ int isCalibrationMode() {
 }
 
 int doubleRate() {
-  return digitalRead(DOUBLE_RATE_PIN) == HIGH;
+  return 0;// digitalRead(DOUBLE_RATE_PIN) == HIGH;
 }
 
 
@@ -111,11 +111,12 @@ void loop() {
   if (isCalibrationMode()) {
     pot.set(100);
     digitalWrite(LED_BUILTIN, LOW);
-    Serial.print("calibration mode : "); Serial.println(100);
+    //Serial.print("calibration mode : "); Serial.println(100);
   } else {
     digitalWrite(LED_BUILTIN, HIGH);
     int currentMicros = micros();
     rateValue = analogRead(A0);
+    Serial.println(rateValue);
     int minPeriod = doubleRate() ? 500000 : 1000000;
     int maxPeriod = doubleRate() ? 50000 : 100000;
     millisPeriod = map(rateValue, 0, 1023, minPeriod, maxPeriod);
@@ -124,34 +125,34 @@ void loop() {
       guard = currentMicros - lastSampleReadingMicros >= millisPeriod / 32;
     }
 
-    Serial.print("doubleRate() = "); Serial.println(doubleRate());
+    //Serial.print("doubleRate() = "); Serial.println(doubleRate());
     //Serial.print(rateValue); Serial.print("=>"); Serial.println(millisPeriod);
 
     if (guard) {
       switch (getSelectedWave())
       {
         case SINE:
-          Serial.println("SINE");
-          waveSample = sine256[lastSampleReadingIdx];
+          //Serial.println("SINE");
+          waveSample = pgm_read_word(&sine256[lastSampleReadingIdx]);
           break;
         case TRI:
-          Serial.println("TRI");
-          waveSample = square256[lastSampleReadingIdx];
+          //Serial.println("TRI");
+          waveSample = pgm_read_word(&square256[lastSampleReadingIdx]);
           break;
         case SQR:
-          Serial.println("SQR");
-          waveSample = square256[lastSampleReadingIdx];
+          //Serial.println("SQR");
+          waveSample = pgm_read_word(&square256[lastSampleReadingIdx]);
           break;
         case SAW:
-          Serial.println("SAW");
-          waveSample = saw256[lastSampleReadingIdx];
+          //Serial.println("SAW");
+          waveSample = pgm_read_word(&saw256[lastSampleReadingIdx]);
           break;
         case RSAW:
-          Serial.println("RSAW");
-          waveSample = rsaw256[lastSampleReadingIdx];
+          //Serial.println("RSAW");
+          waveSample = pgm_read_word(&rsaw256[lastSampleReadingIdx]);
           break;
         case RAND:
-          Serial.println("RAND");
+          //Serial.println("RAND");
 
           waveSample = random(0, 255);
           break;
@@ -160,8 +161,23 @@ void loop() {
           waveSample = 0;
           break;
       }
-      potValue = map(waveSample, 0, 255, 0, 100);
+      int depthValue = analogRead(A1);
+      depthValue = map(depthValue, 0, 1023, 0, 90);
+      potValue = map(waveSample, 0, 255, depthValue, 100);
       pot.set(potValue);
+      Serial.print("Rate: ");
+      Serial.print(rateValue);
+      Serial.print(" depthValue: ");
+      Serial.print(depthValue);
+      Serial.print(" getSelectedWave(): ");
+      Serial.print(getSelectedWave());
+      Serial.print(" waveSample: ");
+      Serial.print(waveSample);
+      Serial.print(" potValue : ");
+      Serial.print(potValue);
+      Serial.print("lastSampleReadingIdx : ");
+      Serial.println(lastSampleReadingIdx);
+
       lastSampleReadingMicros = currentMicros;
       if (lastSampleReadingIdx < 256) {
         lastSampleReadingIdx++;
@@ -170,7 +186,6 @@ void loop() {
         lastSampleReadingIdx = 0;
       }
     }
-    //    Serial.println(potValue);
 
   }
 }
