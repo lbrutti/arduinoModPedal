@@ -116,7 +116,6 @@ void loop() {
     digitalWrite(LED_BUILTIN, HIGH);
     int currentMicros = micros();
     rateValue = analogRead(A0);
-    Serial.println(rateValue);
     int minPeriod = doubleRate() ? 500000 : 1000000;
     int maxPeriod = doubleRate() ? 50000 : 100000;
     millisPeriod = map(rateValue, 0, 1023, minPeriod, maxPeriod);
@@ -165,18 +164,8 @@ void loop() {
       depthValue = map(depthValue, 0, 1023, 0, 90);
       potValue = map(waveSample, 0, 255, depthValue, 100);
       pot.set(potValue);
-      Serial.print("Rate: ");
-      Serial.print(rateValue);
-      Serial.print(" depthValue: ");
-      Serial.print(depthValue);
-      Serial.print(" getSelectedWave(): ");
-      Serial.print(getSelectedWave());
-      Serial.print(" waveSample: ");
-      Serial.print(waveSample);
-      Serial.print(" potValue : ");
-      Serial.print(potValue);
-      Serial.print("lastSampleReadingIdx : ");
-      Serial.println(lastSampleReadingIdx);
+      Serial.println(potValue);
+
 
       lastSampleReadingMicros = currentMicros;
       if (lastSampleReadingIdx < 256) {
